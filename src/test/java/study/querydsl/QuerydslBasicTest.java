@@ -14,6 +14,7 @@ import study.querydsl.entity.Team;
 import javax.persistence.EntityManager;
 
 import static org.assertj.core.api.Assertions.*;
+import static study.querydsl.entity.QMember.*;
 
 @SpringBootTest
 @Transactional
@@ -62,17 +63,29 @@ public class QuerydslBasicTest {
         // 동시성 문제가 발생하지 않는다. 멀티 스레드에서 들어와도 현재 나의 트랜잭션에 따라 바인딩 되도록 바인딩 해 준다. 필드로 빼서 사용하는 걸 권장.
 
         // 어떤 q 멤버인지 이름을 지어준다. 구분하는 이름이다. 크게 중요하진 않음. 나중에 안 쓴다. QMember.member를 쓰게 된다.
-        QMember m = new QMember("m");
+//        QMember m = new QMember("m");
+
+        // 이 방법도 있다. QMember에 보면 생성해 놓은 게 있다. 그냥 이거 쓰면 된다.
+//        QMember member = QMember.member;
+//        근데 얘를 지우는 방법도 있다.
+        // QMember.member를 static import 하는 것. 그럼 그냥 member로 쓸 수 있다.
+
+        // alias가 member1로 되어있는데 이걸 변경하는 방법이 있다.
+        // 이렇게 바꾸면 그냥 다 m1으로 바뀐다.
+//        QMember m1 = new QMember("m1");
+        // 같은 테이블을 조인해야 할 경우에 이런식으로 선언해서 바꿔주면 된다.
 
         // jpql이랑 같이 짜면 된다
         // 파라미터 바인딩이 따로 필요 없다. 자동으로 pstm으로 자동으로 바인딩 한다.
         // JPQL은 문자로 작성해서 오타가 나면 실제 오류 발생이 실행한 시점에서야 알게 되는데 (runtime)
         // querydsl은 컴파일 시점에 오류를 잡아낸다.
         Member findMember = queryFactory
-                .select(m)
-                .from(m)
-                .where(m.username.eq("member1")) // 파라미터 바인딩 처리
+                .select(member)
+                .from(member)
+                .where(member.username.eq("member1")) // 파라미터 바인딩 처리
                 .fetchOne();
+
+        // querydsl은 결국 jpql의 빌더 역할을 한다. 결국 jpql로 돌아가는 것.
 
         assertThat(findMember.getUsername()).isEqualTo("member1");
     }
