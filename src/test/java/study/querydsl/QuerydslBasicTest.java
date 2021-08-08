@@ -89,4 +89,48 @@ public class QuerydslBasicTest {
 
         assertThat(findMember.getUsername()).isEqualTo("member1");
     }
+
+
+    @Test
+    public void search() {
+        // chain을 and나 or로 걸 수 있다.
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1")
+                        .and(member.age.between(10, 30)))
+                .fetchOne();
+
+        // 대표적인것은 eq = equal, ne = not equeal, eq().not도 가능
+        // isNotNull도 가능
+        // in도 가능. (10, 20) 10살이거나 20살이거나.
+        // notIn도 가능, between도.
+
+        //goe 가능 greater or equal
+        // gt = greater
+        // loe = little or equal
+        // lt = little
+
+        // like = like 검색
+        // contains = like '%member$' 검색
+        // startsWith = like 'member%' 검색
+
+        // 등등 있음. 검색해서 써보자.
+        // . 찍어보면 나온다.
+
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+    @Test
+    public void searchAndParam() {
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(
+                        // 이 방식 선호. 후에 이걸 통해 동적쿼리에서 깔끔한 쿼리가 완성된다.
+                        member.username.eq("member1"), // and의 경우 .and 안 넣고 ,를 통해 처리할 수 있다. 여러개 넘기면 걔는 그냥 and다. where의 파라미터로 넘기면 and로 된다.
+                        member.age.eq(10)
+                )
+                .fetchOne();
+
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
 }
