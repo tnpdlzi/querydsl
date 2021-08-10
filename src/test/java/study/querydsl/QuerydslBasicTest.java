@@ -570,4 +570,42 @@ public class QuerydslBasicTest {
     }
 
 
+    // 프로젝션 대상이 하나면 타입을 명확하게 지정활 수 있음
+    // 둘 이상이면 튜플이나 DTO로 조회.
+    @Test
+    public void simpleProjection() {
+        // 프로젝션 대상이 username String 하나일 때. Member로 해서 Member 타입이어도 마찬가지.
+        List<String> fetch = queryFactory
+                .select(member.username)
+                .from(member)
+                .fetch();
+
+        for (String s : fetch) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    // tuple로 가져오기.
+    // 근데 튜플은 queryDsl의 것이다. 리포지토리에서 쓰는 건 괜찮지만 그걸 넘어 서비스나 컨트롤러에서 사용하는 것은 좋지 않다.
+    // querydsl을 쓴다는 걸 외부에 노출하게 되기 때문.
+    // 하부 기술을 바꿀 때 앞단을 바꿀 필요가 없게 하기 위해.
+    // 바깥 계층에 보낼 때는 DTO로 바꿔서 보내자.
+    @Test
+    public void tupleProjection() {
+        List<Tuple> result = queryFactory
+                .select(member.username, member.age)
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            // 이런 식으로 가져옴.
+            String username = tuple.get(member.username);
+            Integer age = tuple.get(member.age);
+            System.out.println("username = " + username);
+            System.out.println("age = " + age);
+        }
+    }
+
+
+
 }
