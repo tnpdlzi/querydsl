@@ -1,9 +1,12 @@
 package study.querydsl;
 
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
@@ -153,18 +156,18 @@ public class QuerydslBasicTest {
 
     @Test
     public void resultFetch() {
-        List<Member> fetch = queryFactory
-                .selectFrom(member)
-                .fetch();
-
-        Member fetchOne = queryFactory
-                .selectFrom(QMember.member)
-                .fetchOne();
-
-        Member fetchFirst = queryFactory
-                .selectFrom(QMember.member)
-//                .limit(1).fetchOne() 이거랑 똑같다.
-                .fetchFirst();
+//        List<Member> fetch = queryFactory
+//                .selectFrom(member)
+//                .fetch();
+//
+//        Member fetchOne = queryFactory
+//                .selectFrom(QMember.member)
+//                .fetchOne();
+//
+//        Member fetchFirst = queryFactory
+//                .selectFrom(QMember.member)
+////                .limit(1).fetchOne() 이거랑 똑같다.
+//                .fetchFirst();
 
         QueryResults<Member> results = queryFactory
                 .selectFrom(member)
@@ -730,7 +733,101 @@ public class QuerydslBasicTest {
         for (MemberDto memberDto : result) {
             System.out.println("memberDto = " + memberDto);
         }
-
     }
+
+    // 동적 쿼리
+    // 1. BooleanBuilder
+    // 2. where문 다중 파라미터 사용
+
+    @Test
+    public void dynamicQuery_BooleanBuilder() {
+        String usernameParam = "member1";
+//        Integer ageParam = 10;
+        Integer ageParam = null; // 이러면 username만 들어가고 이 age는 안 들어간다.
+
+        List<Member> result = searchMember1(usernameParam, ageParam);
+        assertThat(result.size()).isEqualTo(1);
+    }
+
+    // 동적쿼리를 유연하게 작성.
+    private List<Member> searchMember1(String usernameCond, Integer ageCond) {
+
+        BooleanBuilder builder = new BooleanBuilder();
+//        BooleanBuilder builder = new BooleanBuilder(member.username.eq(usernameCond)); // 초기값 넣기도 가능
+        if (usernameCond != null) { // usernameCond가 null이 아니면 빌더에 and를 넣어주는 것.
+            builder.and(member.username.eq(usernameCond));
+        }
+
+        if (ageCond != null) { // 있으면 넣어줌
+            builder.and(member.age.eq(ageCond));
+        }
+
+        return queryFactory
+                .selectFrom(member)
+                .where(builder) // builder 나온 결과를 넣어준다.
+//                .where(builder.and(...)) // and, or 등 조립 가능.
+                .fetch();
+    }
+
+    // where 다중 파라미터 사용
+    // 실무에서 많이 사용
+    // 코드가 깔끔하게 나옴
+    // 빌더보다 이게 훨씬 깔끔
+    @Test
+    public void dynamicQuery_WhereParam() {
+        String usernameParam = "member1";
+//        Integer ageParam = 10;
+        Integer ageParam = null;
+
+        List<Member> result = searchMember2(usernameParam, ageParam);
+        assertThat(result.size()).isEqualTo(1);
+    }
+
+    // 동적쿼리를 유연하게 작성.
+    private List<Member> searchMember2(String usernameCond, Integer ageCond) {
+        // 깔끔하게 읽힌다. 메서드로 추출해내는게 좋다. 동적쿼리가 머리속에 정리가 된다.
+        return queryFactory
+                .selectFrom(member)
+                // null이면 무시되기 때문에 가능한 방법.
+                .where(usernameEq(usernameCond), ageEq(ageCond)) // where에 null이 되면 무시가 된다. and조건이 되는데 응답 값이 null이면 그냥 무시된다.
+//                .where(allEq(usernameCond, ageCond)) // 이런식으로 조립해서 사용도 가능하다.
+                .fetch();
+    }
+
+    // 메서드 뽑으면 Predicate로 나오는데 조립하려면 BooleanExpression으로 써야한다.
+//    private Predicate usernameEq(String usernameCond) {
+    private BooleanExpression usernameEq(String usernameCond) {
+//        if (usernameCond == null) {
+//            return null;
+//        }
+//        return member.username.eq(usernameCond);
+
+        // 간단하면 삼항연산자 사용
+//        return usernameCond == null ? null : member.username.eq(usernameCond);
+        return usernameCond != null ? member.username.eq(usernameCond) : null;
+    }
+
+    private BooleanExpression ageEq(Integer ageCond) {
+        return ageCond != null ? member.age.eq(ageCond) : null;
+    }
+
+
+    // and를 통한 조립! 이렇게 하면 allEq 하나만 넣어도 가능하다!
+    // 조립할 수 있다는 큰 장점! 자바 코드이기 때문에 합성이 가능.
+    private BooleanExpression allEq(String usernameCond, Integer ageCond) {
+        return usernameEq(usernameCond).and(ageEq(ageCond));
+    }
+
+    // 광고 상태 isValid, 날짜가 IN : isServiceable
+//    private BooleanExpression isServiceable(...) {
+//        return isValid(...).and(DateBetweenIn(...));
+//    }
+    // 이렇게 하고 isServiceable() 하면 완료
+    //또한 재활용 가능하다
+    // 다른 쿼리에서 where에 넣으면 또 재사용 가능!
+
+    // 실무할 때 빼놓으면 엄청난 장점을 가져갈 수 있다.
+    // 쿼리 dsl의 가장 큰 장점 중 하나!
+    // null 체크 주의!
 
 }
