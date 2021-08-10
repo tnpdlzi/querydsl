@@ -2,6 +2,7 @@ package study.querydsl;
 
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.assertj.core.api.Assertions;
@@ -503,4 +504,38 @@ public class QuerydslBasicTest {
     // 1. 서브쿼리를 join으로 변경한다. 일반적으로 바꾸는게 더 효율이 좋다.
     // 2. 애플리케이션에서 쿼리를 2번 분리해서 실행한다.
     // 3. native SQL을 사용한다.
+
+
+    // case를 꼭 써야할까?
+    // 가급적이면 db에서 case를 쓰지 말자. raw 데이터를 필터링, 그룹핑 하는 정도로 쓰자.
+    @Test
+    public void basicCase() {
+        List<String> result = queryFactory
+                .select(member.age
+                        .when(10).then("열살")
+                        .when(20).then("스무살")
+                        .otherwise("기타"))
+                .from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    @Test
+    public void complexCase() {
+        List<String> result = queryFactory
+                .select(new CaseBuilder()
+                        .when(member.age.between(0, 20)).then("0~20살")
+                        .when(member.age.between(21, 30)).then("21~30살")
+                        .otherwise("기타"))
+                .from(member)
+                .fetch();
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    
 }
