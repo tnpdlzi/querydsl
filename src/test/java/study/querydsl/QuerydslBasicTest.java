@@ -15,6 +15,8 @@ import study.querydsl.entity.QTeam;
 import study.querydsl.entity.Team;
 
 import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.PersistenceUnit;
 
 import java.util.List;
 
@@ -367,6 +369,45 @@ public class QuerydslBasicTest {
         for (Tuple tuple : result) {
             System.out.println("tuple = " + tuple);
         }
+    }
+
+    @PersistenceUnit
+    EntityManagerFactory emf;
+
+    @Test
+    public void fetchJoinNo() {
+        em.flush();
+        em.clear();
+
+        // lazy기 때문에 member만 조회되고 team은 안 나온다.
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        // 이 엔티티가 로딩된 엔티티인지 아직 초기화가 안 된 에티티인지 가르쳐준다.
+        boolean loaded = emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam());
+        assertThat(loaded).as("페치 조인 미적용").isFalse();
+
+    }
+
+    @Test
+    public void fetchJoinUse() {
+        em.flush();
+        em.clear();
+
+        // lazy기 때문에 member만 조회되고 team은 안 나온다.
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .join(member.team, team).fetchJoin() // 여기에 페치 조인만 들어가고 나머지는 똑같으면 된다.
+                // 그러면 연관된 애들을 한번에 끌고온다.
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        // 이 엔티티가 로딩된 엔티티인지 아직 초기화가 안 된 에티티인지 가르쳐준다.
+        boolean loaded = emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam());
+        assertThat(loaded).as("페치 조인 미적용").isTrue();
+
     }
 
 }
