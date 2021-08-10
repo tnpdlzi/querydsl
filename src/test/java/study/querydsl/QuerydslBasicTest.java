@@ -272,4 +272,101 @@ public class QuerydslBasicTest {
 
     }
 
+    /**
+     * 팀 A에 소속된 모든 회원 찾기
+     */
+    @Test
+    public void join() {
+        // jpql 쿼리 빌더 역할.
+        // select member from member inner join member.team as team where team.name = "teamA"
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .join(member.team, team) // leftJoin, rightJoin도 가능.
+                .where(team.name.eq("teamA"))
+                .fetch();
+
+        assertThat(result)
+                .extracting("username")
+                .containsExactly("member1", "member2");
+    }
+
+    /**
+     * 세타 조인
+     * 회원의 이름이 팀 이름과 같은 회원 조회
+     * --> 연관관계가 없는 조인
+     */
+    @Test
+    public void theta_join() {
+        em.persist(new Member("teamA"));
+        em.persist(new Member("teamB"));
+        em.persist(new Member("teamC"));
+
+        // 모든 회원과 모든 팀을 가져와서 다 조인. 그 후 where에서 필터링. 맞 조인을 다 해버리는 걸 세타 조인이라고 한다. 디비가 보통 성능최적화는 함.
+        // 외부 조인 불가능. 근데 on을 사용하면 외부 조인 가능.
+        List<Member> result = queryFactory
+                .select(member)
+                .from(member, team) // 그냥 프롬절에 두 개 나열
+                .where(member.username.eq(team.name))
+                .fetch();
+
+        assertThat(result)
+                .extracting("username")
+                .containsExactly("teamA", "teamB");
+
+    }
+
+    // join on 절.
+    // 1. 조인대상 필터링
+    // 2. 연관관계 없는 엔티티 외부 조인
+    // 2번에 많이 쓰임.
+
+    /**
+     * 예) 회원과 팀을 조인하면서, 팀 이름이 teamA인 팀만 조인, 회원은 모두 조회
+     * JPQL: select m, t from Member m left join m.team t on t.name = 'teamA'
+     */
+    @Test
+    public void join_on_filtering() {
+        // on 절은 leftJoin을 쓰는 경우에 쓰자. 만약 Inner join인 경우 그냥 WHere절을 쓰자.
+        // select가 여러 타입이라 튜플.
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+                .leftJoin(member.team, team).on(team.name.eq("teamA")) // 그냥 JOIN 하면 팀이 없는 애들은 아예 나타나지 않음.
+                // inner join하면 그냥 WHere 절에서 JOIn 하는 거랑 같다.
+//                .join(member.team, team).where(team.name.eq("teamA"))
+                // 즉, inner join이면 On절 안 쓰고 where로 걸러도 같다. 이런 경우에는 WHERE로 걸러내는 것이 좋다.
+                .fetch();
+
+        // left join이기 때문에 member 데이타는 다 가져온다. 그런데 teamA로 on 을 이용한 join을 했으니 teamA가 아닌 애들은 null로 나타난다.
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
+    // 얘는 실무에서 쓸 일이 있다. 필요할 때가 있다.
+    // 연관이 아예 없어도 join 할 수 있다.
+    /**
+     * 2. 연관관계가 없는 엔티티 외부 조인
+     * 예) 회원의 이름과 팀의 이름이 같은 대상 외부 조인
+     * JPQL: select m, t from Member m left join Team t on m.username = t.name
+     * SQL : select m.*, t.* from Member m left join team t on m.username = t.name
+     */
+    @Test
+    public void join_on_no_relation() {
+        em.persist(new Member("teamA"));
+        em.persist(new Member("teamB"));
+        em.persist(new Member("teamC"));
+
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+//                .leftJoin(member.team, team) 기존의 조인. 이걸 빼버리면 id로 매칭하는 게 아니기 때문에 이름으로 딱 조인이 된다.
+                .leftJoin(team).on(member.username.eq(team.name)) // 막 조인
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
 }
