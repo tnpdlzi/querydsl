@@ -3,6 +3,7 @@ package study.querydsl;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.assertj.core.api.Assertions;
@@ -537,5 +538,36 @@ public class QuerydslBasicTest {
         }
     }
 
-    
+
+    @Test
+    public void constant() {
+        List<Tuple> result = queryFactory
+                .select(member.username, Expressions.constant("A")) // 상수 사용
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
+    @Test
+    public void concat() {
+
+        // {username}_{age}
+        List<String> result = queryFactory
+//                .select(member.username.concat("_").concat(member.age)) // 이거 안됨. 타입이 다르기 때문.
+                .select(member.username.concat("_").concat(member.age.stringValue())) // 이럼 됨. 타입 캐스팅이 일어난다. .stringValue는 많이 쓰게 된다. Enum type같은 경우도.
+                .from(member)
+                .where(member.username.eq("member1"))
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+
+        // 문자가 아닌 건 .stringValue를 사용하자. 특히 ENUM에서 사용.
+    }
+
+
 }
