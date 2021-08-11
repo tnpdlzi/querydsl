@@ -830,4 +830,100 @@ public class QuerydslBasicTest {
     // 쿼리 dsl의 가장 큰 장점 중 하나!
     // null 체크 주의!
 
+
+
+    // 벌크 연선
+    // 쿼리 한 번으로 대량 데이터 수정.
+    // 수정, 삭제 배치 쿼리
+    // 모든 ~를 인상하라 등
+    @Test
+    public void bulkUpdate() {
+
+        // member1 = 10 -> DB member1
+        // member2 = 20 -> DB member2
+        // member3 = 30 -> DB member3
+        // member4 = 40 -> DB member4
+
+        // 벌크 연산은 영속성 컨텍스트와 상관없이 디비에 바로 쿼리가 날라간다.
+        // 그래서 영속성 컨텍스트와 상태가 다르게 된다.
+
+        // 영향을 받은 로우 수
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        // 디비에서 가져와도 영속성 컨텍스트에 값이 있으면 영속성 컨텍스트 값이 유지가 된다.
+        // 그래서 영속성 컨텍스트 초기화가 필요하다.
+        em.flush();
+        em.clear();
+
+        // 1 member1 = 10 -> 1 DB 비회원
+        // 2 member2 = 20 -> 2 DB 비회원
+        // 3 member3 = 30 -> 3 DB member3
+        // 4 member4 = 40 -> 4 DB member4
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+        for (Member member1 : result) {
+            System.out.println("member1 = " + member1);
+        }
+    }
+
+    @Test
+    public void bulkAdd() {
+        // 모든 나이에 1씩 더하기
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.add(1))
+//                .set(member.age, member.age.multiply(2)) // 곱하기
+//                .set(member.age, member.age.add(-1)) 빼기는 없어서 -숫자 해야한다.
+                .execute();
+    }
+
+    @Test
+    public void bulkDelete() {
+        // 18살 이상 전체 삭제
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+    }
+
+    // dialect에서 확인해야한다
+    // Dialect를 상속받아 만든 후 설정에서 dialect에 넣어야 한다. 기본편 참고.
+    @Test
+    public void sqlFunction() {
+        List<String> result = queryFactory
+                .select(Expressions.stringTemplate(
+                        "function('replace', {0}, {1}, {2})", // 0, 1, 2에 각각 들어감.
+                        member.username, "member", "M")) // member라는 단어를 다 M으로 바꿀 것. 숫자라면 integerTemplate같은거 써야한다.
+                .from(member)
+                .fetch();
+
+        //sql : select replace(member.username, ?, ?) from member
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    @Test
+    public void sqlFunction2() {
+        List<String> result = queryFactory
+                .select(member.username)
+                .from(member)
+//                .where(member.username.eq(
+//                        Expressions.stringTemplate("function('lower', {0})", member.username)))
+                .where(member.username.eq(member.username.lower())) // 기본적으로 디비에서 제공하는 것들은 이런식으로 제공된다. 이게 훨씬 깔끔. upper 등도 많다.
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
 }
