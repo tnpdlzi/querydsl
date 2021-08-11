@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: local # local에서만 돌린다.
+    active: test # test에서만 돌린다.
   datasource:
     url: jdbc:h2:tcp://localhost/~/h2db/querydsl
     username: sa
