@@ -2,11 +2,13 @@ package study.querydsl.repository;
 
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.support.QuerydslRepositorySupport;
 import org.springframework.data.support.PageableExecutionUtils;
 import study.querydsl.dto.MemberSearchCondition;
 import study.querydsl.dto.MemberTeamDto;
@@ -21,13 +23,81 @@ import static study.querydsl.entity.QMember.member;
 import static study.querydsl.entity.QTeam.team;
 
 // 꼭 원하는 인터페이스 ~~ Impl이라는 이름으로 작성해야한다.
+//public class MemberRepositoryImpl extends QuerydslRepositorySupport implements MemberRepositoryCustom {
 public class MemberRepositoryImpl implements MemberRepositoryCustom {
 
+    // QuerydslRepositorySupport를 쓰면 이걸 안 쓰고 super를 씀
     private final JPAQueryFactory queryFactory;
 
     public MemberRepositoryImpl(EntityManager em) {
         this.queryFactory = new JPAQueryFactory(em);
     }
+
+    // 부모가 제공하는 기능이 몇 개 있다.
+    // EntityManager, queryDsl을 쓸 수 있다.
+    // from도 편하게 쓸 수 있다.
+//    public MemberRepositoryImpl() {
+//        super(Member.class);
+//    }
+//
+//
+//    @Override
+//    public List<MemberTeamDto> search(MemberSearchCondition condition) {
+//        EntityManager entityManager = getEntityManager(); // 이런 식으로 받아 쓸 수 있다.
+//
+//        // querydsl 3 version에서 사용한 것.
+//        return from(member)
+//                .leftJoin(member.team, team)
+//                .where(
+//                        usernameEq(condition.getUsername()),
+//                        teamNameEq(condition.getTeamName()),
+//                        ageGoe(condition.getAgeGoe()),
+//                        ageLoe(condition.getAgeLoe())
+//                )
+//                .select(new QMemberTeamDto(
+//                        member.id.as("memberId"),
+//                        member.username,
+//                        member.age,
+//                        team.id.as("teamId"),
+//                        team.name.as("teamName")
+//                ))
+//                .fetch();
+//
+//    }
+
+    // 실무에서 안 쓴다.
+    // 편리한 변환 가능. sort는 안 됨.
+    // from으로 시작 가능하나 select로 시작하는게 더 명시적이다.
+    // JPAQueryFactory 시작 불가능. QueryFactory 제공 안 함.
+//    public Page<MemberTeamDto> searchPageSimple2(MemberSearchCondition condition, Pageable pageable) {
+//        JPQLQuery<MemberTeamDto> jpaQuery = from(member)
+//                .leftJoin(member.team, team)
+//                .where(
+//                        usernameEq(condition.getUsername()),
+//                        teamNameEq(condition.getTeamName()),
+//                        ageGoe(condition.getAgeGoe()),
+//                        ageLoe(condition.getAgeLoe())
+//                )
+//                .select(new QMemberTeamDto(
+//                        member.id.as("memberId"),
+//                        member.username,
+//                        member.age,
+//                        team.id.as("teamId"),
+//                        team.name.as("teamName")
+//                ));
+//        // 유틸리티 클래스
+//        // 이러면 얘가 offset, limit을 다 넣어준다.
+//        JPQLQuery<MemberTeamDto> query = getQuerydsl().applyPagination(pageable, jpaQuery);
+//
+//        query.fetch();
+//
+//        List<MemberTeamDto> content = results.getResults();
+//        long total = results.getTotal(); // count
+//
+//        // pageImpl 은 페이지의 구현체이다.
+//        return new PageImpl<>(content, pageable, total);
+//    }
+
 
     @Override
     public List<MemberTeamDto> search(MemberSearchCondition condition) {
@@ -148,6 +218,7 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
     private BooleanExpression usernameEq(String username) {
         return hasText(username) ? member.username.eq(username) : null;
     }
+
     private BooleanExpression teamNameEq(String teamName) {
         return hasText(teamName) ? team.name.eq(teamName) : null;
     }
